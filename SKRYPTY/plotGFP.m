@@ -1,0 +1,110 @@
+function plotGFP(data,startT,stopT,Fs,timeMarks,chanlocs)
+ 
+ 
+ 
+   % Najważniejsze obliczenie w tej funkcji: GFP
+    GFP_dla_osob = std(data, 0, 3) ; % liczymy odchylenie standardowe po kanałach 
+    GFP = mean(GFP_dla_osob, 2);  % uśredniamy po osobach 
+ 
+ 
+    % Poniżej są kody dotyczące rysowania GFP
+    % oś czasu
+    time = (startT:1/Fs:stopT);
+ 
+    % ustawienia do rysowania
+    fontSize  = 14;
+    colors    = [[1 0 0];[0 0 1]];
+    colorMark = [0.5 0.5 0.5];
+    marginesX = 0.1;
+    marginesY = 0.1;
+    labels    = {'Words','Pseudo'};
+ 
+ 
+ 
+    % obliczanie położeń poszczególnych części rysunku:
+    positionPlot = [marginesX, 1-marginesY-(1-2*marginesY)*1/2, 1-2*marginesX, (1-2*marginesY)*1/2];
+    positionTopo = zeros(length(timeMarks)-1,4); 
+    positionTopo(:,2:4) = repmat([1-marginesY-(1-2*marginesY)*3/4, (1-2*marginesX)/length(timeMarks), (1-2*marginesY)*1/6],(length(timeMarks)-1),1);
+    for tim = 1:(length(timeMarks)-1)
+        positionTopo(tim,1) = marginesX+(tim-1)*(1-2*marginesX)/length(timeMarks)+(tim-1)*(1-2*marginesX)/length(timeMarks)/(length(timeMarks)-2);
+    end
+    positionTopo2 = positionTopo;
+    positionTopo2(:,2) = 1-marginesY-(1-2*marginesY);
+    positionCbar = [1-1.1*marginesX, 1-marginesY-(1-2*marginesY)*7/8, marginesX/4, (1-2*marginesY)*1/6];
+ 
+ 
+    figure()
+    % rysowanie krzywej GFP i pionowych linii przedzialow czasowych
+    axes('position',positionPlot)
+    for type=1:size(data,1)
+        hold on
+        plot(time,GFP(type,:)','Color',colors(type,:))
+    end 
+ 
+     % dodajemy linie pionowe oddzielające okienka czasowe
+     % dobieramy pionowy zakres zmienności GFP aby wiedzieć jak wysokie mają być linie
+       YLIM = [floor(min(min(GFP))), ceil(max(max(GFP)))];
+        for l=1:length(timeMarks)
+            line([timeMarks(l)/1000,timeMarks(l)/1000], [YLIM(1) YLIM(2)*0.9], 'Color', colorMark)
+            legend off
+            hold on
+        end
+    xlim([startT,stopT])
+    ylim(YLIM)
+ 
+    % jeszcze trochę kosmetyki:
+    set(gca,'box','off');
+    set(gca, 'FontSize', fontSize);
+ 
+    drawaxis(gca,'x',0,'y',0); % ta funkcja przesuwa osie, tak aby przechodziły przez punkt 0,0
+ 
+    axis off
+ 
+    % opisy osi 
+    text(stopT*0.9,-0.1*YLIM(1)-0.3,'[ms]','FontSize',fontSize,'Interpreter','Latex')
+    text(startT*0.5,0.8*YLIM(2),'[\textit{$\mu$}V]','FontSize',fontSize,'Interpreter','Latex')
+    legend(labels,'Box','off')
+ 
+ 
+   % tu jeszcze dorysowujemy główki z rozkładem topograficznym uśrednionego potencjału w ramach danego odcinka czasu i po osobach badanych, 
+ 
+    % obliczamy minimum i maksimum po wszystkich danych uśrednianych po osobach (czyli pozostaje nam zmienność po: warunkach, kanałach i czasie)
+    % po to aby wszystkie główki miały ten sam zakres kolorów i były porównywalne:
+    scaleTopo = [min(min(min(mean(data,2)))) max(max(max(mean(data,2))))];
+ 
+    if ~isempty(timeMarks)
+        % rysowanie glowek topo dla przedzialow czasowych
+        for l=1:(length(timeMarks)-1)
+            axes('position',positionTopo(l,:))
+            idx = timeMarks(l)/1000 < time & time < timeMarks(l+1)/1000; % wybierz indeksy próbek, które mieszczą się w czasie pomiędzy  timeMarks(l) a timeMarks(l+1) , zwróć uwagę aby jednostki w wektorze time i wektorze znaczników czasu były takie same
+            topoAmp = mean(mean(data(1,:,:,idx),2),4);% uśrednij dane dla warunku 1 po osobach w zakresie czasu któremu odpowiadają idx
+            topoplot( topoAmp, chanlocs, 'plotrad' ,0.6 ,'maplimits',scaleTopo);
+            if l==1
+                text(-1.5,0,labels{1},'FontSize',fontSize);
+            end
+        end
+ 
+        for l=1:(length(timeMarks)-1)
+            axes('position',positionTopo2(l,:))
+            idx = timeMarks(l)/1000 < time & time < timeMarks(l+1)/1000; % wybierz indeksy próbek, które mieszczą się w czasie pomiędzy  timeMarks(l) a timeMarks(l+1) , zwróć uwagę aby jednostki w wektorze time i wektorze znaczników czasu były takie same
+            topoAmp = mean(mean(data(2,:,:,idx),2),4);% uśrednij dane dla warunku 2 po osobach w zakresie czasu któremu odpowiadają idx
+            topoplot( topoAmp, chanlocs, 'plotrad' ,0.6 ,'maplimits',scaleTopo);
+            if l==1
+                text(-1.5,0,labels{2},'FontSize',fontSize);
+            end
+        end
+ 
+        % rysowanie skali kolorow
+        axes('position',positionCbar)
+        c = colorbar;
+        set(gca,'box','off');
+        axis off
+        caxis(scaleTopo);
+        set(c,'FontSize',fontSize)
+        text(9,0.5,'[\textit{$\mu$}V]','FontSize',fontSize,'Interpreter','Latex')
+    end
+ 
+    orient landscape
+    set(findall(gcf,'-property','FontName'),'FontName','Liberation Serif')
+    set(gcf,'DefaultFigurePaperType','A4');
+end

@@ -1,0 +1,30 @@
+function dataANOVA = preparujDaneDlaANOVA(data,timeMarks,ROI,startT,stopT,Fs)
+ 
+    time = (startT:1/Fs:stopT);
+   % przygotujmy miejsce na macierz, która pozbiera dane potrzebne do analizy ANOVA
+   % jest to macierz trzy-wymiarowa: (okna czasow )x( obserwacje )x( typ informacji)
+   % pierwszy indeks numeruje okna czsowe : okien czasowych tyle co  timeMarks  -1
+   % drugi numeruje obserwacje: jedna obserwacja dotyczy średniej amplitudy jaką odnotowano dla jednej osoby w konkretnym warunku , w konkretnym obszarze zaintersowania (ROI)
+% trzeci indeks wskazuje jaką informację w danej komórce macierzy przechowujemy:  |1 -> srednia amplituda 2-> subject 3 ->slowo(0)/pseudo(1) 4->ROI| 
+ 
+    dataANOVA = zeros(length(timeMarks)-1,size(data,1)*size(ROI.channels,1)*size(data,2),4);  
+ 
+    for tim = 1:length(timeMarks)-1 % pętla po okienkach czasowych 
+        licz = 1;
+        for sub = 1:size(data,2) % pętla po indeksach osób
+            for type =  1:2 % pętla po warunkach
+                for R = 1:size(ROI.channels,1)% pętla po ROI-ach jest ich tyle co size(ROI.channels,1)
+                    idx = timeMarks(tim)/1000 < time & time < timeMarks(tim+1)/1000; % wybieramy indeksy próbek należących do czasów pomiędzy timeMarks(tim) a timeMarks(tim+1)
+                    tmpData = data(type,sub,ROI.channels(R,:),idx); % pobieramy wycinek danych konkretnego typ, od konkretnej osoby, z kanałów wskazywanych przez ROI.channels(R,:), i próbek wskazywanych przez idx
+                    tmpData2 = mean(  tmpData ,3); % uśredniamy wybrane kanały
+                    dataANOVA(tim,licz,1) = mean(squeeze( tmpData2)); % uśredniamy wybrany zakres czasów
+                    dataANOVA(tim,licz,2) = sub; % odnotowujemy który to był badany
+                    dataANOVA(tim,licz,3) = type-1; % kodujemy typ
+                    dataANOVA(tim,licz,4) = R; % kodujemy region ROI
+                    licz = licz + 1;
+                end
+            end
+        end
+    end
+ 
+end
